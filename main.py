@@ -1,24 +1,67 @@
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
+import astrbot.api.message_components as Comp
+import random
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.0.0")
-class MyPlugin(Star):
+@register("finger-guessing", "Koikokokokoro", "和群友来一把猜拳吧", "1.0.0")
+class fingerguessing(Star):
     def __init__(self, context: Context):
         super().__init__(context)
 
-    async def initialize(self):
-        """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
-    
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("helloworld")
-    async def helloworld(self, event: AstrMessageEvent):
-        """这是一个 hello world 指令""" # 这是 handler 的描述，将会被解析方便用户了解插件内容。建议填写。
-        user_name = event.get_sender_name()
-        message_str = event.message_str # 用户发的纯文本消息字符串
-        message_chain = event.get_messages() # 用户所发的消息的消息链 # from astrbot.api.message_components import *
-        logger.info(message_chain)
-        yield event.plain_result(f"Hello, {user_name}, 你发了 {message_str}!") # 发送一条纯文本消息
+    @filter.command("猜拳")
+    async def rock_paper_scissors(self, event: AstrMessageEvent):
+        """
+        /猜拳 @xxx
+        与指定用户进行石头剪刀布游戏，随机生成双方手势并判定胜负
+        """
+        messages = event.get_messages()
+        self_id = str(event.get_self_id())
+        sender_id = str(event.get_sender_id())
+        # 找到 @ 目标
+        target_id = next(
+            (str(seg.qq) for seg in messages
+             if isinstance(seg, Comp.At) and str(seg.qq) != self_id),
+            None
+        )
+        if not target_id:
+            yield event.plain_result("请使用 /猜拳 @目标 来发起猜拳游戏。")
+            return
 
-    async def terminate(self):
-        """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
+        # 获取目标昵称
+        nickname = target_id
+        if event.get_platform_name() == "aiocqhttp":
+            try:
+                from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
+                assert isinstance(event, AiocqhttpMessageEvent)
+                info = await event.bot.api.call_action('get_stranger_info', user_id=target_id)
+                nickname = info.get('nick', nickname)
+            except Exception as e:
+                logger.error(f"获取昵称失败: {e}")
+
+        # 手势列表
+        gestures = ["石头", "剪刀", "布"]
+        user_move = random.choice(gestures)
+        target_move = random.choice(gestures)
+
+        # 判定胜负
+        result = "平局"
+        wins = {
+            "石头": "剪刀",
+            "剪刀": "布",
+            "布": "石头"
+        }
+        if user_move == target_move:
+            result = "平局"
+        elif wins[user_move] == target_move:
+            result = "你赢了"
+        else:
+            result = "你输了"
+
+        # 构造消息链
+        chain = [
+            Comp.Plain(f"你出了: {user_move}"),
+            Comp.Plain(f"{nickname}出了: {target_move}"),
+            Comp.Plain(f"结果: {result}")
+        ]
+        yield event.chain_result(chain)
