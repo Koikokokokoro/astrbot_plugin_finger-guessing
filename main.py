@@ -13,7 +13,7 @@ class fingerguessing(Star):
     async def rock_paper_scissors(self, event: AstrMessageEvent):
         """
         /猜拳 @xxx
-        与指定用户进行石头剪刀布游戏，随机生成双方手势并判定胜负
+        与指定用户进行石头剪刀布（Emoji）游戏，随机生成双方手势并判定胜负
         """
         messages = event.get_messages()
         self_id = str(event.get_self_id())
@@ -39,17 +39,17 @@ class fingerguessing(Star):
             except Exception as e:
                 logger.error(f"获取昵称失败: {e}")
 
-        # 手势列表
-        gestures = ["石头", "剪刀", "布"]
+        # 手势列表（Emoji）
+        gestures = ["✊", "✌️", "✋"]
         user_move = random.choice(gestures)
         target_move = random.choice(gestures)
 
         # 判定胜负
         result = "平局"
         wins = {
-            "石头": "剪刀",
-            "剪刀": "布",
-            "布": "石头"
+            "✊": "✌️",
+            "✌️": "✋",
+            "✋": "✊"
         }
         if user_move == target_move:
             result = "平局"
@@ -60,8 +60,8 @@ class fingerguessing(Star):
 
         # 构造消息链
         chain = [
-            Comp.Plain(f"你出了: {user_move}"),
-            Comp.Plain(f"{nickname}出了: {target_move}"),
+            Comp.Plain(f"你出了: {user_move}\n"),
+            Comp.Plain(f"{nickname}出了: {target_move}\n"),
             Comp.Plain(f"结果: {result}")
         ]
         yield event.chain_result(chain)
